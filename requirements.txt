@@ -1,0 +1,5 @@
+numpy>=1.26.0
+opencv-python>=4.9.0
+pygame>=2.5.0
+torch>=2.5.0
+torchvision>=0.20.0
