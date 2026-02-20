@@ -146,7 +146,7 @@ class Runner():
 
                 self.total_score += score
                 self.mean_score = self.total_score / agent.n_games
-                writer.add_scalar('Score/Mean_Score', self.mean_score, self.n_games)
+                writer.add_scalar('Score/Mean', self.mean_score, self.n_games)
 
         return memory
 
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     # env = gym.make("Pendulum-v0")
     hyper_params = "_d_"+args.difficulty+"_m_"+args.model+"_alr_"+str(args.actor_lr)+"_clr_"+str(args.critic_lr)+"_g_"+str(args.gamma)+"_mem_"+str(args.max_memory)+"_batch_"+str(args.batch_size)
     dstr = datetime.datetime.now().strftime("_dt-%Y-%m-%d-%H-%M-%S")
-    writer = SummaryWriter(log_dir="./model"+hyper_params+dstr)
+    writer = SummaryWriter(log_dir="./a2c runs/"+hyper_params+dstr)
     arg_dict = vars(args)
     writer.add_text('Model Parameters: ', str(arg_dict), 0)
 
@@ -215,6 +215,15 @@ if __name__ == '__main__':
     n_actions = 3 #env.action_space.shape[0]
     
     actorcritic = ActorCritic(state.shape[0], n_actions, activation=Mish).to(agent.device)
+    dummy_input = torch.rand(1, args.channels, args.height, args.width).to(agent.device)
+    class TraceableActorCritic(nn.Module):
+        def __init__(self, model):
+            super().__init__()
+            self.model = model
+        def forward(self, x):
+            dist, value = self.model(x)
+            return dist.loc, dist.scale, value
+    writer.add_graph(TraceableActorCritic(actorcritic).to(agent.device), dummy_input)
     # critic = Critic(state.shape[0], activation=Mish).to(agent.device)
     if (args.model_path) or args.test:
         actorcritic.load_state_dict(torch.load(args.model_path, map_location=torch.device('cpu')))
