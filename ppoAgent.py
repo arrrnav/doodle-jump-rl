@@ -151,20 +151,18 @@ class Runner():
                 self.record = score
                 # save the best model yet
                 actorcritic.save(file_name="a2c_model_best.pth", model_folder_path="./model" + hyper_params + dstr)
-                # actorcritic.save(file_name="critic_model_best.pth", model_folder_path="./model"+hyper_params+dstr)
 
             if self.n_games % 100 == 0:
                 # save model per 100 games
                 actorcritic.save(file_name="ppo_model_" + str(self.n_games) + ".pth",
                                  model_folder_path="./model" + hyper_params + dstr)
-                # actorcritic.save(file_name="critic_model_"+str(self.n_games)+".pth", model_folder_path="./model"+hyper_params+dstr)
 
             print('Game', self.n_games, 'Score', score, 'Record:', self.record)
             writer.add_scalar('Score/High_Score', self.record, self.n_games)
 
             self.total_score += score
             self.mean_score = self.total_score / agent.n_games
-            writer.add_scalar('Score/Mean_Score', self.mean_score, self.n_games)
+            writer.add_scalar('Score/Mean', self.mean_score, self.n_games)
 
 
 def test(game, args):
@@ -201,10 +199,7 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--model", type=str, default="ppo", choices=["ppo"],
                         help="select model to train the agent")
     parser.add_argument("-p", "--model_path", type=str, help="path to weights of an earlier trained model")
-    # parser.add_argument("-cp", "--critic_path", type=str, help="path to weights of an earlier trained model")
     parser.add_argument("-aclr", "--actor_critic_lr", type=float, default=4e-4, help="set learning rate for training the model")
-    # parser.add_argument("-clr", "--critic_lr", type=float, default=4e-3,
-    #                     help="set learning rate for training the model")
     parser.add_argument("-g", "--gamma", type=float, default=0.9, help="set discount factor for q learning")
     parser.add_argument("--max_memory", type=int, default=10000, help="Buffer memory size for long training")
     parser.add_argument("--store_frames", action="store_true",
@@ -226,7 +221,7 @@ if __name__ == '__main__':
 
     hyper_params = "_d_" + args.difficulty + "_m_" + args.model + "_aclr_" + str(args.actor_critic_lr) + "_g_" + str(args.gamma) + "_mem_" + str(args.max_memory) + "_batch_" + str(args.batch_size)
     dstr = datetime.datetime.now().strftime("_dt-%Y-%m-%d-%H-%M-%S")
-    writer = SummaryWriter(log_dir="./model" + hyper_params + dstr)
+    writer = SummaryWriter(log_dir="./ppo runs/" + hyper_params + dstr)
     arg_dict = vars(args)
     writer.add_text('Model Parameters: ', str(arg_dict), 0)
 
@@ -234,8 +229,19 @@ if __name__ == '__main__':
     state = agent.get_state()  # env.observation_space.shape[0]
     n_actions = 3  # env.action_space.shape[0]
     actorcritic = PPOActorCritic(state.shape[0], n_actions, activation=Mish).to(agent.device)
+
+    dummy_input = torch.rand(1, args.channels, args.height, args.width).to(agent.device)
+    class TraceableActorCritic(nn.Module):
+        def __init__(self, model):
+            super().__init__()
+            self.model = model
+        def forward(self, x):
+            dist, value = self.model(x)
+            return dist.loc, dist.scale, value
+    writer.add_graph(TraceableActorCritic(actorcritic).to(agent.device), dummy_input)
+
     if (args.model_path) or args.test:
-        actorcritic.load_state_dict(torch.load(args.model_path))
+        actorcritic.load_state_dict(torch.load(args.model_path, map_location=torch.device('cpu')))
     trainer = PPOTrainer(actorcritic, gamma=args.gamma, batch_size=64, device=agent.device, actor_critic_lr=args.actor_critic_lr)
 
     if args.test:
