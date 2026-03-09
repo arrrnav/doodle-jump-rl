@@ -201,7 +201,7 @@ if __name__ == '__main__':
     parser.add_argument("--max_games", type=int, default=1000, help="set the max number of games to be played by the agent")
     args = parser.parse_args()
 
-    game = DoodleJump(difficulty=args.difficulty, server=args.server, reward_type=args.reward_type)
+    game = DoodleJump(difficulty=args.difficulty, server=args.server, reward_type=args.reward_type, stuck_timeout=20)
     agent = Runner(game)
     # env = gym.make("Pendulum-v0")
     hyper_params = "_d_"+args.difficulty+"_m_"+args.model+"_alr_"+str(args.actor_lr)+"_clr_"+str(args.critic_lr)+"_g_"+str(args.gamma)+"_mem_"+str(args.max_memory)+"_batch_"+str(args.batch_size)

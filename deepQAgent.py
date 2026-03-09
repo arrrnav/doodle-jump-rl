@@ -275,7 +275,7 @@ if __name__ == "__main__":
     parser.add_argument("--attack_eps", type=float, default=0.3)
     args = parser.parse_args()
 
-    game = DoodleJump(difficulty=args.difficulty, server=args.server, reward_type=args.reward_type)
+    game = DoodleJump(difficulty=args.difficulty, server=args.server, reward_type=args.reward_type, stuck_timeout=20)
 
     if args.human:
         game.run()

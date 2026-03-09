@@ -8,7 +8,7 @@ from rewards import formulate_reward
 
 path = './game/'
 class DoodleJump:
-    def __init__(self, difficulty='EASY', server=False, reward_type=1):
+    def __init__(self, difficulty='EASY', server=False, reward_type=1, stuck_timeout=100):
         # To change the difficulty of the game, only tune these two parameters:
         # inter_platform_distance - distance between two platforms at two consecutive levels.
         # second_platform_prob - the probability with which you need two platforms at the same level.
@@ -54,6 +54,7 @@ class DoodleJump:
         self.gravity = 0
         self.xmovement = 0
         self.die= 0
+        self.stuck_timeout = stuck_timeout
         self.timer = None
         self.clock = pygame.time.Clock()
         self.generatePlatforms()
@@ -341,7 +342,7 @@ class DoodleJump:
                 self.timer = time.time()
             elif self.timer != None:
                 now_time = time.time()
-                if (now_time - self.timer) > 100:
+                if (now_time - self.timer) > self.stuck_timeout:
                     return_score = self.gameReboot()
                     terminal = True
                     reward = formulate_reward(self.reward_type, "STUCK")
