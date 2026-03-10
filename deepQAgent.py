@@ -198,11 +198,14 @@ def train(game, args, writer):
     agent = Agent(args)
     dummy_input = torch.rand(1, args.channels, args.height, args.width).to(agent.device)
     writer.add_graph(agent.model, dummy_input)
+    writer.add_text('Model Parameters: ', str(vars(args)), 0)
 
     print("Now training...")
 
     record = 0
     total_score = 0
+    episode_reward = 0
+    total_reward = 0
 
     while agent.n_games != args.max_games:
         state_old = agent.get_state(game)
@@ -210,13 +213,14 @@ def train(game, args, writer):
         reward, done, score = game.playStep(final_move)
         state_new = agent.get_state(game)
 
+        episode_reward += reward
         agent.train_short_memory(state_old, final_move, reward, state_new, done)
         agent.remember(state_old, final_move, reward, state_new, done)
 
         if done:
             game.gameReboot()
             agent.n_games += 1
-            agent.train_long_memory()
+            loss = agent.train_long_memory()
 
             if agent.n_games % agent.target_update == 0:
                 agent.update_target()
@@ -229,7 +233,23 @@ def train(game, args, writer):
 
             total_score += score
             mean_score = total_score / agent.n_games
+            total_reward += episode_reward
+            mean_reward = total_reward / agent.n_games
             writer.add_scalar('Score/Mean', mean_score, agent.n_games)
+            writer.add_scalar('Score/High_Score', record, agent.n_games)
+            writer.add_scalar('Reward/episode_reward', episode_reward, agent.n_games)
+            writer.add_scalar('Reward/mean_reward', mean_reward, agent.n_games)
+            writer.add_scalar('Loss/train', loss, agent.n_games)
+            episode_reward = 0
+
+    writer.add_hparams(
+        hparam_dict=vars(args),
+        metric_dict={
+            'mean_reward': total_reward / agent.n_games if agent.n_games > 0 else 0,
+            'high_score': record,
+            'mean_score': total_score / agent.n_games if agent.n_games > 0 else 0,
+        }
+    )
 
 
 # =========================================================
@@ -300,5 +320,7 @@ if __name__ == "__main__":
     elif args.test:
         test(game, args)
     else:
-        writer = SummaryWriter(log_dir="runs")
+        hyper_params = f"_d_{args.difficulty}_m_{args.model}_lr_{args.learning_rate}_g_{args.gamma}_batch_{args.batch_size}"
+        dstr = datetime.datetime.now().strftime("_dt-%Y-%m-%d-%H-%M-%S")
+        writer = SummaryWriter(log_dir="./dqn_runs/" + hyper_params + dstr)
         train(game, args, writer)
