@@ -153,7 +153,7 @@ class Agent:
         elif self.exploration_type == "epsilon_g_decay_exp_cur":
             self.epsilon = self.decay_factor * pow(self.eulers_constant, -self.steps)
 
-        return r > self.epsilon
+        return r < self.epsilon
 
     # --------------------------------------------------
     # Action selection
@@ -196,7 +196,7 @@ def train(game, args, writer):
         reward, done, score = game.playStep(final_move)
         state_new = agent.get_state(game)
 
-        agent.train_short_memory(state_old, final_move, reward, state_new, [done])
+        agent.train_short_memory(state_old, final_move, reward, state_new, done)
         agent.remember(state_old, final_move, reward, state_new, done)
 
         if done:
