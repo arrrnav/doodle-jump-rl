@@ -5,16 +5,18 @@ import numpy as np
 
 
 class QTrainer:
-    def __init__(self, model, lr, gamma, device, num_channels, attack_eps):
+    def __init__(self, model, target_model, lr, gamma, device, num_channels, attack_eps):
         super(QTrainer, self).__init__()
 
         self.lr = lr
         self.gamma = gamma
         self.model = model
+        self.target_model = target_model
         self.device = device
 
-        # Move model to device
+        # Move models to device
         self.model.to(self.device)
+        self.target_model.to(self.device)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
@@ -58,10 +60,9 @@ class QTrainer:
             reward = torch.unsqueeze(reward, 0)
             done = (done,)
 
-        # Predict next state values
-        self.model.eval()
+        # Predict next state values using frozen target network
         with torch.no_grad():
-            next_pred = self.model(next_state)
+            next_pred = self.target_model(next_state)
 
         # Current prediction
         self.model.train()

@@ -1,4 +1,5 @@
 import os
+import copy
 import datetime
 import argparse
 import random
@@ -78,15 +79,28 @@ class Agent:
             )
             print(f"Loaded model from {args.model_path} on {self.device}")
 
+        # Target network — frozen copy of model, synced every target_update games
+        self.target_model = copy.deepcopy(self.model)
+        self.target_model.to(self.device)
+        self.target_model.eval()
+        self.target_update = args.target_update
+
         # Trainer
         self.trainer = QTrainer(
             model=self.model,
+            target_model=self.target_model,
             lr=self.lr,
             gamma=self.gamma,
             device=self.device,
             num_channels=self.image_c,
             attack_eps=args.attack_eps
         )
+
+    # --------------------------------------------------
+    # Target network sync
+    # --------------------------------------------------
+    def update_target(self):
+        self.target_model.load_state_dict(self.model.state_dict())
 
     # --------------------------------------------------
     # Preprocessing
@@ -204,6 +218,9 @@ def train(game, args, writer):
             agent.n_games += 1
             agent.train_long_memory()
 
+            if agent.n_games % agent.target_update == 0:
+                agent.update_target()
+
             if score > record:
                 record = score
                 agent.model.save("model_best_updated.pth")
@@ -273,6 +290,7 @@ if __name__ == "__main__":
     parser.add_argument("--epsilon", type=float, default=0.8)
     parser.add_argument("--attack", action="store_true")
     parser.add_argument("--attack_eps", type=float, default=0.3)
+    parser.add_argument("--target_update", type=int, default=10, help="sync target network every N games")
     args = parser.parse_args()
 
     game = DoodleJump(difficulty=args.difficulty, server=args.server, reward_type=args.reward_type, stuck_timeout=20)
