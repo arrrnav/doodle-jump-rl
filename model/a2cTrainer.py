@@ -36,7 +36,7 @@ def process_memory(memory, batch_size, device, gamma, discount_rewards=True):
         if action is not None:
             actions.append(action)
         else:
-            actions.append((np.zeros((1, 3))))
+            actions.append(0)
         if reward is not None:
             rewards.append(reward)
         else:
@@ -60,7 +60,7 @@ def process_memory(memory, batch_size, device, gamma, discount_rewards=True):
         # else:
         rewards = discounted_rewards(rewards, dones, gamma)
 
-    actions = t(actions).to(device)
+    actions = torch.tensor(actions, dtype=torch.long).to(device)
     states = t(states).to(device)
     next_states = t(next_states).to(device)
     rewards = t(rewards).view(-1, 1).to(device)
@@ -93,8 +93,8 @@ class A2CLearner():
         if discount_rewards:
             td_target = rewards
         else:
-            td_target = rewards + self.gamma * self.actorcritic(next_states)[1] * (1 - dones)
-        value = self.actorcritic(states)[1]
+            td_target = rewards + self.gamma * self.actorcritic(next_states)[1].detach() * (1 - dones)
+        norm_dists, value = self.actorcritic(states)
         advantage = td_target - value #delta
         # delta = td_target - value
         # advantage = self.lastgaelam = delta + self.gamma*self.lam*(1-dones)*self.lastgaelam
@@ -107,11 +107,10 @@ class A2CLearner():
         #         nextnonterminal = 1 - dones[t]
 
         # actor
-        norm_dists = self.actorcritic(states)[0]
         logs_probs = norm_dists.log_prob(actions)
         entropy = norm_dists.entropy().mean()
 
-        actor_loss = (-logs_probs * advantage.detach()).mean() - entropy * self.entropy_beta
+        actor_loss = (-logs_probs * advantage.detach().squeeze(-1)).mean() - entropy * self.entropy_beta
         # self.actor_optim.zero_grad()
         # actor_loss.backward()
 
@@ -127,8 +126,9 @@ class A2CLearner():
 
         total_loss = actor_loss + critic_loss
 
-        total_loss.backward()
         self.actorcritic_optim.zero_grad()
+        total_loss.backward()
+        nn.utils.clip_grad_norm_(self.actorcritic.parameters(), self.max_grad_norm)
         self.actorcritic_optim.step()
 
 

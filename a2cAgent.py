@@ -105,15 +105,14 @@ class Runner():
             if self.done: self.reset()
             state_old = self.get_state()
             dists = actorcritic(t(state_old).to(self.device))[0]
-            actions = dists.sample().detach().cpu().data.numpy()
-            actions_clipped = np.clip(actions, -1, 1) #self.env.action_space.low.min(), env.action_space.high.max())
-            
+            actions = dists.sample().item()
+
             final_move = [0,0,0]
-            final_move[np.argmax(actions_clipped)] = 1
+            final_move[actions] = 1
             reward, self.done, score = self.game.playStep(final_move)
-            
+
             next_state = self.get_state()
-            memory.append((actions, reward, self.state, next_state, self.done))
+            memory.append((actions, reward, state_old, next_state, self.done))
 
             self.state = next_state
             self.steps += 1
@@ -161,11 +160,10 @@ def test(game, args):
     while agent.n_games != args.max_games:
         state_old = agent.get_state()
         dists = actorcritic(t(state_old).to(agent.device))[0]
-        actions = dists.sample().detach().cpu().data.numpy()
-        actions_clipped = np.clip(actions, -1, 1) #self.env.action_space.low.min(), env.action_space.high.max())
-        
+        actions = dists.sample().item()
+
         final_move = [0,0,0]
-        final_move[np.argmax(actions_clipped)] = 1
+        final_move[actions] = 1
         reward, done, score = game.playStep(final_move)
         # final_move = agent.get_action(state_old, test_mode=True)
         # reward, done, score = game.playStep(final_move)
@@ -222,7 +220,7 @@ if __name__ == '__main__':
             self.model = model
         def forward(self, x):
             dist, value = self.model(x)
-            return dist.loc, dist.scale, value
+            return dist.probs, value
     writer.add_graph(TraceableActorCritic(actorcritic).to(agent.device), dummy_input)
     # critic = Critic(state.shape[0], activation=Mish).to(agent.device)
     if (args.model_path) or args.test:

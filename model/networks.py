@@ -166,7 +166,8 @@ class ActorCritic(nn.Module):
             activation(),
             nn.Linear(64, 64),
             activation(),
-            nn.Linear(64, n_actions)
+            nn.Linear(64, n_actions),
+            nn.Softmax(dim=-1)
         )
         #critic
         self.model2 = nn.Sequential(
@@ -177,8 +178,6 @@ class ActorCritic(nn.Module):
             nn.Linear(64, 1),
         )
 
-        logstds_param = nn.Parameter(torch.full((n_actions,), 0.1))
-        self.register_parameter("logstds", logstds_param)
 
     def forward(self, X):
         x = X.view(-1, 1, 80, 80)
@@ -190,12 +189,11 @@ class ActorCritic(nn.Module):
         maxpool3_res = self.maxpool3(conv3_res)
         flattened_res = torch.reshape(maxpool3_res, (-1, 256))
         # for actor
-        means = self.model1(flattened_res)
-        stds = torch.clamp(self.logstds.exp(), 1e-3, 50)
+        probs = self.model1(flattened_res)
         # for critic
         flattened_res = self.fc1(flattened_res)
         # actor return, critic return
-        return torch.distributions.Normal(means, stds), self.model2(flattened_res)
+        return Categorical(probs=probs), self.model2(flattened_res)
 
     def save(self, file_name='model.pth', model_folder_path='./model_actor_critic'):
         os.makedirs(model_folder_path, exist_ok=True)
