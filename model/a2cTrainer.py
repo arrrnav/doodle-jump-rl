@@ -145,7 +145,6 @@ class A2CLearner():
         # reports
         writer.add_scalar("losses/log_probs", -logs_probs.mean(), global_step=steps)
         writer.add_scalar("losses/entropy", entropy, global_step=steps)
-        writer.add_scalar("losses/entropy_beta", self.entropy_beta, global_step=steps)
         writer.add_scalar("losses/actor", actor_loss, global_step=steps)
         writer.add_scalar("losses/advantage", advantage.mean(), global_step=steps)
         writer.add_scalar("losses/critic", critic_loss, global_step=steps)

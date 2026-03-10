@@ -30,6 +30,8 @@ class Runner():
         self.done = True
         self.steps = 0
         self.episode_reward = 0
+        self.episode_steps = 0
+        self.total_reward = 0
         self.mean_reward = 0
         self.mean_score = 0
         self.episode_rewards = []
@@ -59,6 +61,7 @@ class Runner():
     
     def reset(self):
         self.episode_reward = 0
+        self.episode_steps = 0
         self.done = False
         self.state = None
         self.game.gameReboot()
@@ -116,10 +119,8 @@ class Runner():
 
             self.state = next_state
             self.steps += 1
+            self.episode_steps += 1
             self.episode_reward += reward
-            self.mean_reward = self.episode_reward/self.steps
-
-            writer.add_scalar("Reward/mean_reward", self.mean_reward, global_step=self.steps)
             
             if self.done:
                 self.n_games += 1
@@ -127,7 +128,10 @@ class Runner():
                 self.episode_rewards.append(self.episode_reward)
                 if len(self.episode_rewards) % 10 == 0:
                     print("episode:", len(self.episode_rewards), ", episode reward:", self.episode_reward)
-                writer.add_scalar("Reward/episode_reward", self.episode_reward, global_step=self.steps)
+                self.total_reward += self.episode_reward
+                self.mean_reward = self.total_reward / self.n_games
+                writer.add_scalar("Reward/episode_reward", self.episode_reward, global_step=self.n_games)
+                writer.add_scalar("Reward/mean_reward", self.mean_reward, global_step=self.n_games)
 
                 if score > self.record:
                     self.record = score
